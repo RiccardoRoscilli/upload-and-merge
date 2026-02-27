@@ -81,7 +81,7 @@
                     <i class="fas fa-file-pdf text-danger"></i> Upload & Merge PDF
                 </h1>
                 <p class="text-center text-muted mb-4">
-                    Carica file ZIP contenenti PDF. Verranno estratti e uniti in un unico documento.
+                    Carica file ZIP contenenti PDF o file PDF direttamente. Verranno uniti in un unico documento.
                 </p>
 
                 <form id="uploadForm">
@@ -90,13 +90,13 @@
                     <!-- Dropzone -->
                     <div id="dropzone" class="mb-4">
                         <i class="fas fa-cloud-upload-alt fa-4x text-muted mb-3"></i>
-                        <h5>Trascina i file ZIP qui</h5>
+                        <h5>Trascina i file ZIP o PDF qui</h5>
                         <p class="text-muted mb-3">oppure</p>
                         <button type="button" class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
                             <i class="fas fa-folder-open"></i> Seleziona File
                         </button>
-                        <input type="file" id="fileInput" name="files[]" multiple accept=".zip" style="display: none;">
-                        <p class="text-muted mt-3 mb-0"><small>Formati supportati: ZIP (max 50MB per file)</small></p>
+                        <input type="file" id="fileInput" name="files[]" multiple accept=".zip,.pdf" style="display: none;">
+                        <p class="text-muted mt-3 mb-0"><small>Formati supportati: ZIP, PDF (max 50MB per file)</small></p>
                     </div>
 
                     <!-- Lista File -->
@@ -170,7 +170,7 @@
 
         function handleFiles(files) {
             for (let file of files) {
-                if (file.name.endsWith('.zip')) {
+                if (file.name.endsWith('.zip') || file.name.endsWith('.pdf')) {
                     selectedFiles.push(file);
                 }
             }
@@ -199,10 +199,11 @@
             let html = '';
             selectedFiles.forEach((file, index) => {
                 const size = (file.size / 1024 / 1024).toFixed(2);
+                const icon = file.name.endsWith('.pdf') ? 'fa-file-pdf text-danger' : 'fa-file-archive text-warning';
                 html += `
                     <div class="file-item">
                         <div>
-                            <i class="fas fa-file-archive text-warning me-2"></i>
+                            <i class="fas ${icon} me-2"></i>
                             <strong>${file.name}</strong>
                             <small class="text-muted ms-2">(${size} MB)</small>
                         </div>
@@ -231,7 +232,7 @@
             e.preventDefault();
 
             if (selectedFiles.length === 0) {
-                Swal.fire('Attenzione', 'Seleziona almeno un file ZIP', 'warning');
+                Swal.fire('Attenzione', 'Seleziona almeno un file ZIP o PDF', 'warning');
                 return;
             }
 

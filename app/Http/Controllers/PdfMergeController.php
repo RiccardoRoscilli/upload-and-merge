@@ -18,7 +18,7 @@ class PdfMergeController extends Controller
     {
         $request->validate([
             'files' => 'required|array',
-            'files.*' => 'file|mimes:zip|max:51200', // Max 50MB per file
+            'files.*' => 'file|mimes:zip,pdf|max:51200', // Max 50MB per file, accetta ZIP e PDF
         ]);
 
         try {
@@ -31,10 +31,10 @@ class PdfMergeController extends Controller
                 mkdir($tempDir, 0755, true);
             }
 
-            // Ordina i file ZIP per numero nel nome
+            // Ordina i file per numero nel nome
             $sortedFiles = collect($uploadedFiles)->sortBy(function($file) {
                 $filename = $file->getClientOriginalName();
-                // Estrai il numero dal nome (es: "ITAS 1.zip" -> 1, "IT 11.zip" -> 11)
+                // Estrai il numero dal nome (es: "ITAS 1.zip" -> 1, "IT 11.zip" -> 11, "file 5.pdf" -> 5)
                 if (preg_match('/(\d+)/', $filename, $matches)) {
                     return (int)$matches[1];
                 }
@@ -42,22 +42,32 @@ class PdfMergeController extends Controller
                 return 9999;
             })->values()->all();
 
-            // Processa ogni ZIP nell'ordine corretto
+            // Processa ogni file nell'ordine corretto
             foreach ($sortedFiles as $file) {
-                $zipPath = $file->getRealPath();
-                $extractDir = $tempDir . '/' . pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+                $extension = strtolower($file->getClientOriginalExtension());
+                
+                if ($extension === 'zip') {
+                    // Processa ZIP
+                    $zipPath = $file->getRealPath();
+                    $extractDir = $tempDir . '/' . pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
 
-                // Estrai ZIP
-                $zip = new ZipArchive;
-                if ($zip->open($zipPath) === TRUE) {
-                    $zip->extractTo($extractDir);
-                    $zip->close();
+                    // Estrai ZIP
+                    $zip = new ZipArchive;
+                    if ($zip->open($zipPath) === TRUE) {
+                        $zip->extractTo($extractDir);
+                        $zip->close();
 
-                    // Trova tutti i PDF nella directory estratta
-                    $pdfs = $this->findPdfs($extractDir);
-                    $allPdfs = array_merge($allPdfs, $pdfs);
-                } else {
-                    throw new \Exception("Impossibile aprire il file ZIP: " . $file->getClientOriginalName());
+                        // Trova tutti i PDF nella directory estratta
+                        $pdfs = $this->findPdfs($extractDir);
+                        $allPdfs = array_merge($allPdfs, $pdfs);
+                    } else {
+                        throw new \Exception("Impossibile aprire il file ZIP: " . $file->getClientOriginalName());
+                    }
+                } elseif ($extension === 'pdf') {
+                    // Processa PDF diretto
+                    $pdfPath = $tempDir . '/' . $file->getClientOriginalName();
+                    $file->move($tempDir, $file->getClientOriginalName());
+                    $allPdfs[] = $pdfPath;
                 }
             }
 
@@ -65,7 +75,7 @@ class PdfMergeController extends Controller
             sort($allPdfs);
 
             if (empty($allPdfs)) {
-                throw new \Exception("Nessun file PDF trovato negli archivi ZIP");
+                throw new \Exception("Nessun file PDF trovato");
             }
 
             // Unisci i PDF
